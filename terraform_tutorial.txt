@@ -1,0 +1,319 @@
+https://learn.hashicorp.com/tutorials/terraform/infrastructure-as-code?in=terraform/aws-get-started
+
+
+Initialize - Run terraform init in the project directory with the configuration files. This will download the correct provider plug-ins for the project.
+
+Plan & Apply - Run terraform plan to verify creation process and then terraform apply to create real resources as well as state file that compares future changes in your configuration files to what actually exists in your deployment environment.
+
+create a working directory i.e. terraform_project/
+
+i.e. a tf file to create a docker image 
+
+terraform {
+  required_providers {
+    docker = {
+      source = "kreuzwerker/docker"
+    }
+  }
+}
+
+provider "docker" {}
+
+resource "docker_image" "nginx" {
+  name         = "nginx:latest"
+  keep_locally = false
+}
+
+resource "docker_container" "nginx" {
+  image = docker_image.nginx.latest
+  name  = "tutorial"
+  ports {
+    internal = 80
+    external = 8000
+  }
+}
+
+-initialize project:
+--> for this case, Terraform downloads a plugin that allows Terraform to interact with Docker 
+
+$ terraform init 
+
+--> trigger to provision the NGNIX server container 
+
+$ terraform apply 
+
+--> stop the container and destroy 
+
+$ terraform destroy 
+
+
+-------------------------------------------------------------
+Prerequisite:
+AWS CLI
+AWS configuration complete 
+
+(Build Infra) 
+--> Terraform configuration 
+
+1. create a project folder like - learn-terraform-aws-instance
+
+main.tf
+
+terrform {} block 
+  : Terraform knows which provider to download from the Terraform Registry. 
+     i.e. awe --> defined as hashicorp/aws --> registry.terraform.io/hashicorp/aws 
+
+provider block --> named provider i.e. aws 
+  --> responsible for creating and managing resources 
+       --> A provider is a plugin that Terraform uses to translate the API interactions with the service. 
+
+  --> profile: the AWS credentials stored in the local AWS Config file. 
+
+resources block 
+  --> defines a piece of infrastructure --> can be physical (EC2) or logical (Heroku app) 
+  --> resource type (i.e. aws_instance) and resource name (example) 
+
+----------------------------------------
+main.tf to deploy an EC2 instance in us-west-2
+-----------------------------------------
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 3.27"
+    }
+  }
+}
+
+provider "aws" {
+  profile = "default"
+  region  = "us-west-2"
+}
+
+resource "aws_instance" "example" {
+  ami           = "ami-830c94e3"
+  instance_type = "t2.micro"
+
+  tags = {
+    Name = "ExampleInstance"
+  }
+}
+
+ ----------------------------------------
+
+a revised main.ft file to deploy an EC2 install in us-east-1 with different vpc and subnet
+-----------------------------------------
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 3.27"
+    }
+  }
+}
+
+provider "aws" {
+  profile = "default"
+  region  = "us-east-1"
+}
+
+resource "aws_instance" "example" {
+  ami           = "ami-0742b4e673072066f"
+  instance_type = "t2.micro"
+  vpc_security_group_ids = ["sg-002bf5a65b1c43b50"]
+  subnet_id              = "subnet-040c1f34f87cf4f4b"
+
+  tags = {
+    Name = "ExampleInstance"
+  }
+}
+
+----------------------------------------------
+
+
+
+2. initiate 
+$ terraform init 
+
+--> Terraform downloads the aws provider and installs it in a hidden subdirectory of the current working directory. The output shows which version of the plugin was installed.
+
+3. format and validate 
+
+$ terraform fmt 
+
+$ terraform validate 
+Success! The configuration is valid.
+
+3. create infrastructure 
+
+$ terraform apply 
+--> it will show the execution plan including what will be done/installed
+
+3. inspect the state
+--> terraform writes the data into a file (terraform.ftstate) 
+      :This file now contains the IDs and properties of the resources Terraform created so that it can manage or destroy those resources going forward.
+
+$ terraform show 
+# aws_instance.example:
+resource "aws_instance" "example" {
+    ami                          = "ami-830c94e3"
+    arn                          = "arn:aws:ec2:us-west-2:380257559915:instance/i-0a5c76b9dee759121"
+    associate_public_ip_address  = true
+    availability_zone            = "us-west-2b"
+    cpu_core_count               = 1
+    cpu_threads_per_core         = 1
+    disable_api_termination      = false
+    ebs_optimized                = false
+    get_password_data            = false
+    hibernation                  = false
+    id                           = "i-0a5c76b9dee759121"
+    instance_state               = "running"
+    instance_type                = "t2.micro"
+    ipv6_address_count           = 0
+    ipv6_addresses               = []
+    monitoring                   = false
+    primary_network_interface_id = "eni-0fdec912deadfd8fc"
+    private_dns                  = "ip-172-31-26-70.us-west-2.compute.internal"
+    private_ip                   = "172.31.26.70"
+    public_dns                   = "ec2-54-185-16-10.us-west-2.compute.amazonaws.com"
+    public_ip                    = "54.185.16.10"
+    secondary_private_ips        = []
+    security_groups              = [
+        "default",
+    ]
+    source_dest_check            = true
+    subnet_id                    = "subnet-87be0dff"
+    tags                         = {
+        "Name" = "ExampleInstance"
+    }
+    tenancy                      = "default"
+    vpc_security_group_ids       = [
+        "sg-ace64d97",
+    ]
+
+    credit_specification {
+        cpu_credits = "standard"
+    }
+
+    enclave_options {
+        enabled = false
+    }
+
+    metadata_options {
+        http_endpoint               = "enabled"
+        http_put_response_hop_limit = 1
+        http_tokens                 = "optional"
+    }
+
+    root_block_device {
+        delete_on_termination = true
+        device_name           = "/dev/sda1"
+        encrypted             = false
+        iops                  = 0
+        tags                  = {}
+        throughput            = 0
+        volume_id             = "vol-0b5994bdd978b8d0b"
+        volume_size           = 8
+        volume_type           = "standard"
+    }
+}
+
+$ terraform show
+
+# aws_instance.example:
+resource "aws_instance" "example" {
+    ami                          = "ami-0742b4e673072066f"
+    arn                          = "arn:aws:ec2:us-east-1:380257559915:instance/i-0b03059654c3190c9"
+    associate_public_ip_address  = true
+    availability_zone            = "us-east-1a"
+    cpu_core_count               = 1
+    cpu_threads_per_core         = 1
+    disable_api_termination      = false
+    ebs_optimized                = false
+    get_password_data            = false
+    hibernation                  = false
+    id                           = "i-0b03059654c3190c9"
+    instance_state               = "running"
+    instance_type                = "t2.micro"
+    ipv6_address_count           = 0
+    ipv6_addresses               = []
+    monitoring                   = false
+    primary_network_interface_id = "eni-07cafad152369c228"
+    private_dns                  = "ip-10-1-0-12.ec2.internal"
+    private_ip                   = "10.1.0.12"
+    public_ip                    = "54.165.28.0"
+    secondary_private_ips        = []
+    security_groups              = []
+    source_dest_check            = true
+    subnet_id                    = "subnet-040c1f34f87cf4f4b"
+    tags                         = {
+        "Name" = "ExampleInstance"
+    }
+    tenancy                      = "default"
+    vpc_security_group_ids       = [
+        "sg-002bf5a65b1c43b50",
+    ]
+
+    credit_specification {
+        cpu_credits = "standard"
+    }
+
+    enclave_options {
+        enabled = false
+    }
+
+    metadata_options {
+        http_endpoint               = "enabled"
+        http_put_response_hop_limit = 1
+        http_tokens                 = "optional"
+    }
+
+    root_block_device {
+        delete_on_termination = true
+        device_name           = "/dev/xvda"
+        encrypted             = false
+        iops                  = 100
+        tags                  = {}
+        throughput            = 0
+        volume_id             = "vol-08e8d55394fa24d98"
+        volume_size           = 8
+        volume_type           = "gp2"
+    }
+}
+
+------------------------------------------------
+
+(Destroy the EC2 instances)
+from the working directory 
+
+$ terraform destroy
+
+aws_instance.example: Destroying... [id=i-0b03059654c3190c9]
+aws_instance.example: Still destroying... [id=i-0b03059654c3190c9, 10s elapsed]
+aws_instance.example: Still destroying... [id=i-0b03059654c3190c9, 20s elapsed]
+aws_instance.example: Still destroying... [id=i-0b03059654c3190c9, 30s elapsed]
+aws_instance.example: Still destroying... [id=i-0b03059654c3190c9, 40s elapsed]
+aws_instance.example: Destruction complete after 41s
+
+Destroy complete! Resources: 1 destroyed.
+
+-------------------------------------------------
+(Define input variables) 
+
+example:
+
+variables.tf
+
+variable "instance_name" {
+  description = "Value of the Name tag for the EC2 instance"
+  type        = string
+  default     = "ExampleInstance"
+}
+
+
+
+
+
+
+
+
